@@ -1,55 +1,59 @@
 // Charm the Commuter — make.fun one-liner entry.
+// One weather forecast for a city that does not exist, written to make a
+// bored commuter smile on the way to work. The program is deterministic:
+// no network, no randomness, no model calls, Node 22+ stdlib only.
 //
-// Writes the chosen forecast line to <OUTPUT_DIR>/entry.txt (default
-// /output). The line is a single weather forecast for a city that does
-// not exist, written to make a bored commuter smile on the way to work.
-//
-// Guards: the line must be a single line of 1-140 characters (counted in
-// code points, so emoji and accented letters count once each). Anything
-// else fails loudly before any file is written.
+// It writes the chosen line to <OUTPUT_DIR>/entry.txt (default /output),
+// with NO trailing newline, so the file holds exactly the forecast line.
 
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-const LINE =
+// Winner from CANDIDATES.md (12 lines scored 20/20): Snoozeburg names the
+// sleepy fictional city up front, forecasts impossible weather in real
+// forecast language ("expect scattered naps", "90% chance"), and stacks
+// three commuter payoffs — a seat, snoring clouds, coffee.
+const FORECAST =
   "In Snoozeburg, expect scattered naps with a 90% chance of finding a seat — the clouds are snoring, so bring coffee.";
 
-const MAX_CHARS = 140;
+const LIMIT = 140;
 
-function fail(message: string): never {
-  console.error(`entry failed: ${message}`);
+function abort(reason: string): never {
+  console.error(`charm-the-commuter: ${reason}`);
   process.exit(1);
 }
 
-function checkLine(line: string): void {
-  const trimmed = line.trim();
-
-  if (trimmed.length === 0) {
-    fail("forecast line is empty");
-  }
-  if (trimmed !== line) {
-    fail("forecast line has leading or trailing whitespace");
+function validate(line: string): number {
+  if (line.length === 0) abort("forecast line is empty");
+  if (line.trim() !== line) {
+    abort("forecast line has leading or trailing whitespace");
   }
   if (line.includes("\n") || line.includes("\r")) {
-    fail("forecast line must be a single line (contains a newline)");
+    abort("forecast line must be a single line");
   }
-
-  const size = [...line].length; // code points, not UTF-16 units
-  if (size < 1 || size > MAX_CHARS) {
-    fail(`forecast line is ${size} characters, must be 1-${MAX_CHARS}`);
+  // Code points, so an em dash counts as one character.
+  const chars = [...line].length;
+  if (chars > LIMIT) {
+    abort(`forecast line is ${chars} characters, over the ${LIMIT} limit`);
   }
+  return chars;
 }
 
-function main(): void {
-  checkLine(LINE);
-
-  const outDir = resolve(process.env.OUTPUT_DIR ?? "/output");
-  mkdirSync(outDir, { recursive: true });
-
-  const target = join(outDir, "entry.txt");
-  writeFileSync(target, `${LINE}\n`, "utf8");
-
-  console.log(`wrote ${[...LINE].length}-character forecast to ${target}`);
+function run(): void {
+  const chars = validate(FORECAST);
+  const dir = resolve(process.env.OUTPUT_DIR ?? "/output");
+  mkdirSync(dir, { recursive: true });
+  const file = join(dir, "entry.txt");
+  // Deliberately no trailing newline: entry.txt must be exactly the line.
+  writeFileSync(file, FORECAST, "utf8");
+  // Read it back and confirm the file holds exactly the forecast line:
+  // same text, no trailing newline, valid UTF-8, within the 1-140 gate.
+  const back = readFileSync(file, "utf8");
+  if (back !== FORECAST) {
+    abort("entry.txt read-back does not match the forecast line");
+  }
+  if (back.endsWith("\n")) abort("entry.txt has a trailing newline");
+  console.log(`wrote ${chars}-character forecast to ${file}`);
 }
 
-main();
+run();
