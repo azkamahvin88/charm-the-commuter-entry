@@ -1,0 +1,1 @@
+{"description":"make.fun one-liner entry: a one-line weather forecast for a city that isn't, written to charm a bored commuter.","license":"MIT","name":"charm-the-commuter-entry","private":true,"scripts":{"start":"node main.ts"},"type":"module","version":"1.0.0"}
